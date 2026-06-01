@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.claude/
+*.md
+02-*
+03-*
+deploy/
+data/
+*.txt
+.gitignore
