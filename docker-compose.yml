@@ -1,0 +1,19 @@
+# 在云服务器项目目录执行：docker compose up -d --build
+services:
+  family-budget:
+    build: .
+    container_name: family-budget
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      JWT_SECRET: change-me-to-a-long-random-string
+      DB_PATH: /data/family_budget.db
+    volumes:
+      - budget-data:/data
+
+volumes:
+  budget-data:

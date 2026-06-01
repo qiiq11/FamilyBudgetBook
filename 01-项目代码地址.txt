@@ -1,0 +1,9 @@
+【家庭记账本 - 项目代码仓库地址】
+
+GitHub / Gitee 地址：（请组长填写实际仓库链接）
+
+示例：
+  https://github.com/你的用户名/FamilyBudgetBook
+
+本地路径：
+  d:\学习\大学课程\web程序设计\FamilyBudgetBook
