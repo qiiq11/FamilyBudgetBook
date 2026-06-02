@@ -17,7 +17,7 @@
 ## 技术栈
 
 - **前端**：Vue 3 + TypeScript + Vite + Element Plus + ECharts + Pinia
-- **后端**：Node.js + Express + SQLite（提供 MySQL 建表脚本供文档使用）
+- **后端**：Node.js 22 + Express + node:sqlite（提供 MySQL 建表脚本供文档使用）
 - **认证**：JWT
 
 ## 环境要求
