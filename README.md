@@ -25,23 +25,6 @@
 - **Node.js 22.5+**（后端使用内置 `node:sqlite`）
 - npm 9+
 
-## 快速开始
-
-```bash
-# 终端 1 - 后端
-cd backend
-npm install
-npm run seed    # 演示账号 demo / 123456
-npm run dev
-
-# 终端 2 - 前端
-cd frontend
-npm install
-npm run dev
-```
-
-浏览器打开 http://localhost:5173
-
 ## 公网访问
 
 **线上地址**：http://123.60.7.243
