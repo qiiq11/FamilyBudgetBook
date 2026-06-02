@@ -12,11 +12,13 @@ if (exists) {
 }
 
 const hash = bcrypt.hashSync(password, 10);
-const result = db
-  .prepare('INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)')
+db.prepare('INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)')
   .run(username, hash, '演示家庭');
 
-const userId = result.lastInsertRowid;
+// node:sqlite lastInsertRowid 可能不可靠，改用查询获取
+const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+const userId = user.id;
+
 const members = [
   ['爸爸', '父亲'],
   ['妈妈', '母亲'],
@@ -44,8 +46,9 @@ const insertCat = db.prepare(
 );
 const catIds = {};
 categories.forEach(([name, type], i) => {
-  const r = insertCat.run(userId, name, type, i);
-  catIds[name] = r.lastInsertRowid;
+  insertCat.run(userId, name, type, i);
+  const cat = db.prepare('SELECT id FROM categories WHERE user_id = ? AND name = ?').get(userId, name);
+  catIds[name] = cat.id;
 });
 
 const memberIds = db
@@ -59,7 +62,8 @@ const insertTx = db.prepare(
 );
 
 const today = new Date();
-if (!db.prepare('SELECT COUNT(*) AS c FROM transactions WHERE user_id = ?').get(userId).c) {
+const existingTx = db.prepare('SELECT COUNT(*) AS c FROM transactions WHERE user_id = ?').get(userId);
+if (!existingTx.c) {
   insertTx.run(
     userId,
     memberIds['爸爸'],
