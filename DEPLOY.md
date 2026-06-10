@@ -2,29 +2,22 @@ SSH 端口（22）能建立 TCP 连接但服务端立即断开，可能是安全
 
 ---
 
-## 服务器端一键修复脚本（已有 v2 代码，只需重建数据库 + 更新前端）
+## 服务器端一键修复脚本
 
-**适用于：服务器已有 v2 代码，但 seed 没执行或前端不是最新。**
-
-在服务器控制台的 shell 中执行：
+**在服务器 CloudShell 中执行：**
 
 ```bash
-# === 1. 拉取最新代码 ===
+# === 1. 拉取最新代码（包含修复后的完整前端构建产物）===
 cd /root/FamilyBudgetBook
 git pull
 
-# === 2. 构建前端 ===
-cd /root/FamilyBudgetBook/frontend
-npm install
-npm run build
-
-# === 3. 停服务，清空旧数据库，重新 seed ===
+# === 2. 停服务，清空旧数据库，重新 seed ===
 cd /root/FamilyBudgetBook/backend
 pm2 stop family-budget
 rm -f data/family_budget.db
 node src/seed.js
 
-# === 4. 确保 .env 文件存在 ===
+# === 3. 确保 .env 文件存在 ===
 cat > .env << 'EOF'
 NODE_ENV=production
 PORT=3000
@@ -33,85 +26,20 @@ JWT_SECRET=family-budget-production-secret-key-2026
 DB_PATH=./data/family_budget.db
 EOF
 
-# === 5. 启动服务 ===
+# === 4. 启动服务 ===
 pm2 start /root/FamilyBudgetBook/deploy/ecosystem.config.cjs
 
-# === 6. 验证 ===
+# === 5. 验证 ===
 sleep 2
 pm2 status
+echo "=== 健康检查 ==="
 curl -s http://localhost:3000/api/health
-echo "---"
-echo "测试 seed 账号："
+echo ""
+echo "=== 验证 seed 账号 ==="
 curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"测试员","password":"666666"}'
-```
-
----
-
-## 服务器端一键部署脚本（全新部署，之前没有 v2 代码）
-
-```bash
-# === 1. 拉取最新代码 ===
-cd /root/FamilyBudgetBook
-git pull
-
-# === 2. 构建前端 ===
-cd /root/FamilyBudgetBook/frontend
-npm install
-npm run build
-
-# === 3. 更新后端依赖 + 重建数据库 ===
-cd /root/FamilyBudgetBook/backend
-npm install --omit=dev
-
-# === 4. 先停服务，清空旧数据库（v2.0结构不兼容），重建 ===
-pm2 stop family-budget
-rm -f data/family_budget.db
-node src/seed.js
-
-# === 5. 确保 .env 文件存在 ===
-cat > .env << 'EOF'
-NODE_ENV=production
-PORT=3000
-HOST=0.0.0.0
-JWT_SECRET=family-budget-production-secret-key-2026
-DB_PATH=./data/family_budget.db
-EOF
-
-# === 6. 更新 Nginx 配置（支持 SPA fallback） ===
-sudo tee /etc/nginx/sites-available/family-budget << 'NGINX_EOF'
-server {
-    listen 80;
-    server_name _;
-
-    client_max_body_size 10m;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        root /root/FamilyBudgetBook/frontend/dist;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
-}
-NGINX_EOF
-
-sudo nginx -t && sudo systemctl reload nginx
-
-# === 7. 启动服务 ===
-pm2 start /root/FamilyBudgetBook/deploy/ecosystem.config.cjs
-
-# === 8. 验证 ===
-sleep 2
-pm2 status
-curl -s http://localhost:3000/api/health
-curl -s http://localhost/api/health
+echo ""
+echo "=== 验证前端 JS 文件 ==="
+curl -sI http://localhost:3000/assets/index-DcuNnFby.js 2>&1 | head -5
 ```
 
 ---
