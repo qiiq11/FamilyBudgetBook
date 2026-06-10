@@ -153,8 +153,23 @@ const joining = ref(false);
 
 const createForm = reactive({ name: '', password: '' });
 const joinForm = reactive({ inviteCode: '', password: '' });
-// Store passwords by group ID for display
-const groupPasswords = ref<Record<number, string>>({});
+// Store passwords by group ID for display (persisted to localStorage)
+const PASSWORD_STORAGE_KEY = 'groupPasswords';
+
+function loadPasswords(): Record<number, string> {
+  try {
+    const stored = localStorage.getItem(PASSWORD_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePasswords(passwords: Record<number, string>) {
+  localStorage.setItem(PASSWORD_STORAGE_KEY, JSON.stringify(passwords));
+}
+
+const groupPasswords = ref<Record<number, string>>(loadPasswords());
 
 function roleLabel(role: string) {
   const map: Record<string, string> = { creator: '创建者', admin: '管理员', member: '成员' };
@@ -200,7 +215,7 @@ async function onCreate() {
     await groupStore.fetchGroups();
     // Associate password with newly created group
     const newGroup = groupStore.groups.find(g => !groupPasswords.value[g.id]);
-    if (newGroup) groupPasswords.value[newGroup.id] = pw;
+    if (newGroup) { groupPasswords.value[newGroup.id] = pw; savePasswords(groupPasswords.value); }
   } finally {
     creating.value = false;
   }
@@ -226,6 +241,7 @@ async function onJoin() {
     await groupStore.fetchGroups();
     // Remember the password
     groupPasswords.value[result.id] = pw;
+    savePasswords(groupPasswords.value);
   } finally {
     joining.value = false;
   }
@@ -236,6 +252,7 @@ async function onDeleteGroup(g: { id: number }) {
     await groupApi.remove(g.id);
     ElMessage.success('已删除');
     delete groupPasswords.value[g.id];
+    savePasswords(groupPasswords.value);
     await groupStore.fetchGroups();
     if (groupStore.currentGroupId === g.id) {
       if (groupStore.groups.length > 0) {
