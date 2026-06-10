@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireGroup } from '../middleware/groupAuth.js';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requireGroup);
 
 function dateRange(period, refDate) {
   const d = refDate ? new Date(refDate) : new Date();
@@ -42,6 +44,7 @@ function dateRange(period, refDate) {
   return null;
 }
 
+// GET /api/stats/summary
 router.get('/summary', (req, res) => {
   const { period, refDate, memberId, startDate, endDate } = req.query;
   let start = startDate;
@@ -61,9 +64,9 @@ router.get('/summary', (req, res) => {
   let sql = `
     SELECT type, SUM(amount) AS total, COUNT(*) AS count
     FROM transactions
-    WHERE user_id = ? AND trans_date >= ? AND trans_date <= ?
+    WHERE group_id = ? AND trans_date >= ? AND trans_date <= ?
   `;
-  const params = [req.user.id, start, end];
+  const params = [req.groupMember.group_id, start, end];
   if (memberId) {
     sql += ' AND member_id = ?';
     params.push(Number(memberId));
@@ -105,6 +108,7 @@ router.get('/summary', (req, res) => {
   });
 });
 
+// GET /api/stats/by-category
 router.get('/by-category', (req, res) => {
   const { type, startDate, endDate, memberId } = req.query;
   if (!startDate || !endDate) return res.status(400).json({ message: '请指定起止日期' });
@@ -116,9 +120,9 @@ router.get('/by-category', (req, res) => {
     SELECT c.id AS categoryId, c.name AS categoryName, SUM(t.amount) AS total, COUNT(*) AS count
     FROM transactions t
     JOIN categories c ON c.id = t.category_id
-    WHERE t.user_id = ? AND t.type = ? AND t.trans_date >= ? AND t.trans_date <= ?
+    WHERE t.group_id = ? AND t.type = ? AND t.trans_date >= ? AND t.trans_date <= ?
   `;
-  const params = [req.user.id, type, startDate, endDate];
+  const params = [req.groupMember.group_id, type, startDate, endDate];
   if (memberId) {
     sql += ' AND t.member_id = ?';
     params.push(Number(memberId));
@@ -133,6 +137,7 @@ router.get('/by-category', (req, res) => {
   res.json({ list, total: Number(sum.toFixed(2)), type });
 });
 
+// GET /api/stats/by-member
 router.get('/by-member', (req, res) => {
   const { startDate, endDate } = req.query;
   if (!startDate || !endDate) return res.status(400).json({ message: '请指定起止日期' });
@@ -141,11 +146,11 @@ router.get('/by-member', (req, res) => {
     SELECT m.id AS memberId, m.name AS memberName, t.type, SUM(t.amount) AS total, COUNT(*) AS count
     FROM transactions t
     JOIN family_members m ON m.id = t.member_id
-    WHERE t.user_id = ? AND t.trans_date >= ? AND t.trans_date <= ?
+    WHERE t.group_id = ? AND t.trans_date >= ? AND t.trans_date <= ?
     GROUP BY m.id, t.type
     ORDER BY m.id, t.type
   `;
-  const rows = db.prepare(sql).all(req.user.id, startDate, endDate);
+  const rows = db.prepare(sql).all(req.groupMember.group_id, startDate, endDate);
 
   const map = {};
   rows.forEach((r) => {
@@ -172,6 +177,7 @@ router.get('/by-member', (req, res) => {
   res.json({ list: Object.values(map) });
 });
 
+// GET /api/stats/trend
 router.get('/trend', (req, res) => {
   const { startDate, endDate, groupBy = 'day', memberId } = req.query;
   if (!startDate || !endDate) return res.status(400).json({ message: '请指定起止日期' });
@@ -186,9 +192,9 @@ router.get('/trend', (req, res) => {
   let sql = `
     SELECT ${fmt} AS period, type, SUM(amount) AS total
     FROM transactions
-    WHERE user_id = ? AND trans_date >= ? AND trans_date <= ?
+    WHERE group_id = ? AND trans_date >= ? AND trans_date <= ?
   `;
-  const params = [req.user.id, startDate, endDate];
+  const params = [req.groupMember.group_id, startDate, endDate];
   if (memberId) {
     sql += ' AND member_id = ?';
     params.push(Number(memberId));
@@ -209,6 +215,50 @@ router.get('/trend', (req, res) => {
   });
 
   res.json({ trend });
+});
+
+// GET /api/stats/calendar — daily summary for calendar view
+router.get('/calendar', (req, res) => {
+  const { year, month } = req.query;
+  const y = Number(year) || new Date().getFullYear();
+  const m = Number(month) || (new Date().getMonth() + 1);
+
+  const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+  // Last day of month
+  const lastDay = new Date(y, m, 0).getDate();
+  const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  const rows = db.prepare(`
+    SELECT trans_date AS date, type, SUM(amount) AS total
+    FROM transactions
+    WHERE group_id = ? AND status = 'approved'
+      AND trans_date >= ? AND trans_date <= ?
+    GROUP BY trans_date, type
+    ORDER BY trans_date
+  `).all(req.groupMember.group_id, startDate, endDate);
+
+  // Build day-by-day map
+  const dayMap = {};
+  rows.forEach((r) => {
+    if (!dayMap[r.date]) dayMap[r.date] = { income: 0, expense: 0 };
+    dayMap[r.date][r.type] = Number(r.total.toFixed(2));
+  });
+
+  const days = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const day = dayMap[date] || { income: 0, expense: 0 };
+    days.push({
+      date,
+      day: d,
+      weekday: new Date(y, m - 1, d).getDay(), // 0=Sun
+      income: day.income,
+      expense: day.expense,
+      balance: Number((day.income - day.expense).toFixed(2)),
+    });
+  }
+
+  res.json({ year: y, month: m, lastDay, days });
 });
 
 export default router;

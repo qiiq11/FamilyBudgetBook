@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
+import groupRoutes from './routes/groups.js';
 import memberRoutes from './routes/members.js';
 import categoryRoutes from './routes/categories.js';
 import transactionRoutes from './routes/transactions.js';
@@ -21,6 +22,7 @@ app.use(express.json());
 app.get('/api/health', (_, res) => res.json({ status: 'ok', name: '家庭记账本 API' }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/groups', groupRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);

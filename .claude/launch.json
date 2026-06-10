@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "backend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--experimental-sqlite", "src/index.js"],
       "port": 3000,
       "cwd": "backend"
     },

@@ -1,17 +1,17 @@
 <template>
   <el-row :gutter="16">
-    <el-col :span="12">
-      <el-card>
+    <el-col :xs="24" :md="12">
+      <el-card class="page-card" shadow="never">
         <template #header>
           <div class="card-header">
             <span>收入分类</span>
-            <el-button type="primary" size="small" @click="openForm('income')">新增</el-button>
+            <el-button v-if="groupStore.canWrite" type="primary" size="small" @click="openForm('income')">新增</el-button>
           </div>
         </template>
         <el-table :data="incomeList" stripe>
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="sortOrder" label="排序" width="80" />
-          <el-table-column label="操作" width="140">
+          <el-table-column label="操作" width="140" v-if="groupStore.canWrite">
             <template #default="{ row }">
               <el-button link type="primary" @click="openForm('income', row)">编辑</el-button>
               <el-button link type="danger" @click="onDelete(row.id)">删除</el-button>
@@ -20,18 +20,18 @@
         </el-table>
       </el-card>
     </el-col>
-    <el-col :span="12">
-      <el-card>
+    <el-col :xs="24" :md="12">
+      <el-card class="page-card" shadow="never">
         <template #header>
           <div class="card-header">
             <span>支出分类</span>
-            <el-button type="primary" size="small" @click="openForm('expense')">新增</el-button>
+            <el-button v-if="groupStore.canWrite" type="primary" size="small" @click="openForm('expense')">新增</el-button>
           </div>
         </template>
         <el-table :data="expenseList" stripe>
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="sortOrder" label="排序" width="80" />
-          <el-table-column label="操作" width="140">
+          <el-table-column label="操作" width="140" v-if="groupStore.canWrite">
             <template #default="{ row }">
               <el-button link type="primary" @click="openForm('expense', row)">编辑</el-button>
               <el-button link type="danger" @click="onDelete(row.id)">删除</el-button>
@@ -59,11 +59,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { categoryApi } from '@/api';
+import { useGroupStore } from '@/stores/group';
 
 interface Cat { id: number; name: string; type: string; sortOrder: number }
+
+const groupStore = useGroupStore();
 
 const list = ref<Cat[]>([]);
 const visible = ref(false);
@@ -74,7 +77,8 @@ const incomeList = computed(() => list.value.filter((c) => c.type === 'income'))
 const expenseList = computed(() => list.value.filter((c) => c.type === 'expense'));
 
 async function load() {
-  list.value = (await categoryApi.list()) as Cat[];
+  if (!groupStore.currentGroupId) return;
+  list.value = (await categoryApi.list(groupStore.currentGroupId)) as Cat[];
 }
 
 function openForm(type: string, row?: Cat) {
@@ -90,10 +94,11 @@ async function onSave() {
     ElMessage.warning('请输入分类名称');
     return;
   }
+  const gid = groupStore.currentGroupId!;
   if (editingId.value) {
-    await categoryApi.update(editingId.value, form.value);
+    await categoryApi.update(gid, editingId.value, { name: form.value.name, sortOrder: form.value.sortOrder });
   } else {
-    await categoryApi.create(form.value);
+    await categoryApi.create(gid, form.value);
   }
   visible.value = false;
   ElMessage.success('保存成功');
@@ -102,12 +107,13 @@ async function onSave() {
 
 async function onDelete(id: number) {
   await ElMessageBox.confirm('确定删除？有关联账目时无法删除', '提示', { type: 'warning' });
-  await categoryApi.remove(id);
+  await categoryApi.remove(groupStore.currentGroupId!, id);
   ElMessage.success('已删除');
   load();
 }
 
 onMounted(load);
+watch(() => groupStore.currentGroupId, (newId) => { if (newId) load(); });
 </script>
 
 <style scoped>

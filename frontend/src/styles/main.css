@@ -1,3 +1,30 @@
+/* ===== CSS Variables — Warm Family Theme ===== */
+:root {
+  --primary: #e67e22;
+  --primary-light: #f0a500;
+  --primary-dark: #d35400;
+  --accent: #27ae60;
+  --accent-light: #2ecc71;
+  --danger: #e74c3c;
+  --danger-light: #fdecea;
+  --bg-page: #fdf6f0;
+  --bg-card: #ffffff;
+  --bg-header: #fff8f0;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --text-muted: #b0b0b0;
+  --border-color: #f0e6dc;
+  --border-light: #f8f0e8;
+  --shadow-sm: 0 2px 8px rgba(230, 126, 34, 0.06);
+  --shadow-md: 0 4px 16px rgba(230, 126, 34, 0.10);
+  --shadow-lg: 0 8px 32px rgba(230, 126, 34, 0.14);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,37 +32,147 @@
 }
 
 body {
-  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background: #f0f2f5;
-  color: #303133;
+  font-family: var(--font-family);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
 }
 
+/* ===== Typography ===== */
+h1, h2, h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 3px;
+}
+
+/* ===== Income / Expense text ===== */
 .income-text {
-  color: #67c23a;
+  color: var(--accent);
   font-weight: 600;
 }
 
 .expense-text {
-  color: #f56c6c;
+  color: var(--danger);
   font-weight: 600;
 }
 
+/* ===== Page Card ===== */
 .page-card {
   margin-bottom: 16px;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+  overflow: hidden;
 }
 
+.page-card .el-card__header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ===== Stat Card ===== */
 .stat-card {
   text-align: center;
-  padding: 20px;
+  padding: 24px 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .stat-card .label {
-  font-size: 14px;
-  color: #909399;
+  font-size: 13px;
+  color: var(--text-secondary);
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .stat-card .value {
   font-size: 28px;
   font-weight: 700;
+}
+
+/* ===== Buttons ===== */
+.el-button--primary {
+  --el-button-bg-color: var(--primary);
+  --el-button-border-color: var(--primary);
+  --el-button-hover-bg-color: var(--primary-light);
+  --el-button-hover-border-color: var(--primary-light);
+  --el-button-active-bg-color: var(--primary-dark);
+  --el-button-active-border-color: var(--primary-dark);
+  border-radius: var(--radius-sm);
+}
+
+/* ===== Dialog ===== */
+.el-dialog {
+  border-radius: var(--radius-lg) !important;
+}
+
+.el-dialog__header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ===== Table ===== */
+.el-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background: var(--bg-header);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ===== Tags / Badges ===== */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.role-badge.creator {
+  background: #fef3e2;
+  color: #e67e22;
+  border: 1px solid #fde2c4;
+}
+
+.role-badge.admin {
+  background: #e8f5e9;
+  color: #27ae60;
+  border: 1px solid #c8e6c9;
+}
+
+.role-badge.member {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
 }

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-card class="page-card">
+    <el-card class="page-card" shadow="never">
       <el-form :inline="true" :model="query">
         <el-form-item label="类型">
           <el-select v-model="query.type" clearable placeholder="全部" style="width: 100px">
@@ -33,12 +33,15 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="load">查询</el-button>
-          <el-button type="success" @click="openForm()">记一笔</el-button>
+          <el-button v-if="groupStore.canWrite" type="success" @click="openForm()">记一笔</el-button>
+          <el-button v-if="!groupStore.canWrite" type="warning" @click="openForm()">
+            <el-icon><EditPen /></el-icon> 申请记账
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <el-card>
+    <el-card class="page-card" shadow="never">
       <el-table :data="list" stripe v-loading="loading">
         <el-table-column prop="transDate" label="日期" width="120" />
         <el-table-column prop="memberName" label="成员" width="100" />
@@ -58,7 +61,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="note" label="备注" show-overflow-tooltip />
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column v-if="groupStore.canWrite" label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openForm(row)">编辑</el-button>
             <el-button link type="danger" @click="onDelete(row.id)">删除</el-button>
@@ -75,7 +78,7 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑账目' : '记一笔'" width="480px">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="类型" required>
           <el-radio-group v-model="form.type" @change="onTypeChange">
@@ -112,9 +115,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { EditPen } from '@element-plus/icons-vue';
 import { transactionApi, memberApi, categoryApi } from '@/api';
+import { useGroupStore } from '@/stores/group';
 
 interface Member { id: number; name: string }
 interface Category { id: number; name: string; type: string }
@@ -128,6 +133,8 @@ interface TxRow {
   note: string;
 }
 
+const groupStore = useGroupStore();
+
 const members = ref<Member[]>([]);
 const categories = ref<Category[]>([]);
 const list = ref<TxRow[]>([]);
@@ -136,6 +143,11 @@ const loading = ref(false);
 const dialogVisible = ref(false);
 const editingId = ref<number | null>(null);
 const dateRange = ref<[string, string] | null>(null);
+
+const dialogTitle = computed(() => {
+  if (editingId.value) return '编辑账目';
+  return groupStore.canWrite ? '记一笔' : '申请记账';
+});
 
 const query = reactive({
   type: '',
@@ -158,12 +170,17 @@ const form = reactive({
 const filteredCategories = computed(() => categories.value.filter((c) => c.type === form.type));
 
 async function loadMeta() {
-  const [m, c] = await Promise.all([memberApi.list(), categoryApi.list()]);
+  if (!groupStore.currentGroupId) return;
+  const [m, c] = await Promise.all([
+    memberApi.list(groupStore.currentGroupId),
+    categoryApi.list(groupStore.currentGroupId),
+  ]);
   members.value = m as Member[];
   categories.value = c as Category[];
 }
 
 async function load() {
+  if (!groupStore.currentGroupId) return;
   loading.value = true;
   try {
     const params: Record<string, unknown> = { ...query };
@@ -171,7 +188,7 @@ async function load() {
       params.startDate = dateRange.value[0];
       params.endDate = dateRange.value[1];
     }
-    const res = await transactionApi.list(params) as { list: TxRow[]; total: number };
+    const res = await transactionApi.list(groupStore.currentGroupId, params) as { list: TxRow[]; total: number };
     list.value = res.list;
     total.value = res.total;
   } finally {
@@ -215,13 +232,18 @@ async function onSave() {
     ElMessage.warning('请填写完整信息');
     return;
   }
+  const gid = groupStore.currentGroupId!;
   const payload = { ...form };
   if (editingId.value) {
-    await transactionApi.update(editingId.value, payload);
+    await transactionApi.update(gid, editingId.value, payload);
     ElMessage.success('已更新');
   } else {
-    await transactionApi.create(payload);
-    ElMessage.success('已添加');
+    const result = await transactionApi.create(gid, payload) as any;
+    if (result.message) {
+      ElMessage.success(result.message);
+    } else {
+      ElMessage.success(groupStore.canWrite ? '已添加' : '已提交申请');
+    }
   }
   dialogVisible.value = false;
   load();
@@ -229,13 +251,22 @@ async function onSave() {
 
 async function onDelete(id: number) {
   await ElMessageBox.confirm('确定删除该记录？', '提示', { type: 'warning' });
-  await transactionApi.remove(id);
+  await transactionApi.remove(groupStore.currentGroupId!, id);
   ElMessage.success('已删除');
   load();
 }
 
 onMounted(async () => {
-  await loadMeta();
-  load();
+  if (groupStore.currentGroupId) {
+    await loadMeta();
+    load();
+  }
+});
+
+watch(() => groupStore.currentGroupId, async (newId) => {
+  if (newId) {
+    await loadMeta();
+    load();
+  }
 });
 </script>
