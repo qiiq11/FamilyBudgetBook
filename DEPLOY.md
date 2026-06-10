@@ -2,9 +2,52 @@ SSH 端口（22）能建立 TCP 连接但服务端立即断开，可能是安全
 
 ---
 
-## 服务器端一键部署脚本
+## 服务器端一键修复脚本（已有 v2 代码，只需重建数据库 + 更新前端）
+
+**适用于：服务器已有 v2 代码，但 seed 没执行或前端不是最新。**
 
 在服务器控制台的 shell 中执行：
+
+```bash
+# === 1. 拉取最新代码 ===
+cd /root/FamilyBudgetBook
+git pull
+
+# === 2. 构建前端 ===
+cd /root/FamilyBudgetBook/frontend
+npm install
+npm run build
+
+# === 3. 停服务，清空旧数据库，重新 seed ===
+cd /root/FamilyBudgetBook/backend
+pm2 stop family-budget
+rm -f data/family_budget.db
+node src/seed.js
+
+# === 4. 确保 .env 文件存在 ===
+cat > .env << 'EOF'
+NODE_ENV=production
+PORT=3000
+HOST=0.0.0.0
+JWT_SECRET=family-budget-production-secret-key-2026
+DB_PATH=./data/family_budget.db
+EOF
+
+# === 5. 启动服务 ===
+pm2 start /root/FamilyBudgetBook/deploy/ecosystem.config.cjs
+
+# === 6. 验证 ===
+sleep 2
+pm2 status
+curl -s http://localhost:3000/api/health
+echo "---"
+echo "测试 seed 账号："
+curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"测试员","password":"666666"}'
+```
+
+---
+
+## 服务器端一键部署脚本（全新部署，之前没有 v2 代码）
 
 ```bash
 # === 1. 拉取最新代码 ===
@@ -81,7 +124,7 @@ curl -s http://localhost/api/health
 - [ ] 用 `测试员` / `666666` 登录成功
 - [ ] 首页显示日历视图（每日收支颜色标记）
 - [ ] 收支管理可正常记账
-- [ ] 我的家庭组页面显示邀请码和密码
+- [ ] 我的家庭组页面显示邀请码和密码（刷新页面后密码不丢失）
 - [ ] 审批管理页面正常
 
 ---
