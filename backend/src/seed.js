@@ -110,5 +110,10 @@ for (let i = 0; i < 30; i++) {
 }
 
 console.log('演示数据已生成');
-console.log('账号：测试员  密码：666666');
-console.log('家庭组邀请码：' + inviteCode + '  密码：' + groupPassword);
+console.log('========================================');
+console.log('  账号：测试员  密码：666666');
+console.log('  家庭组：测试家庭组');
+console.log('  邀请码：' + inviteCode + '  密码：' + groupPassword);
+console.log('  创建者可在「我的家庭组」中看到邀请码');
+console.log('  首次使用时请点击密码旁的编辑图标设置显示密码');
+console.log('========================================');

@@ -55,12 +55,19 @@
           </el-button>
         </div>
 
-        <!-- Password (show when available) -->
+        <!-- Password (always visible for creator; others see only if they joined/created) -->
         <div class="group-card-row">
           <span class="field-label">密码</span>
-          <code class="field-code">{{ groupPasswords[g.id] || '（仅创建/加入时可查看）' }}</code>
+          <code class="field-code" v-if="groupPasswords[g.id]">{{ groupPasswords[g.id] }}</code>
+          <code class="field-code" v-else-if="g.role === 'creator'" style="color: var(--text-muted); font-weight: 400;">点击右侧设置</code>
+          <code class="field-code" v-else style="color: var(--text-muted); font-weight: 400;">仅创建者可见</code>
+          <!-- Copy button (when password known) -->
           <el-button v-if="groupPasswords[g.id]" size="small" text @click.stop="copyText(groupPasswords[g.id], '密码')">
             <el-icon><CopyDocument /></el-icon>
+          </el-button>
+          <!-- Creator can set/reset password -->
+          <el-button v-if="g.role === 'creator'" size="small" text @click.stop="openChangePassword(g)" :title="groupPasswords[g.id] ? '修改密码' : '设置密码'">
+            <el-icon><EditPen /></el-icon>
           </el-button>
         </div>
 
@@ -133,6 +140,22 @@
         <el-button type="primary" :loading="joining" @click="onJoin">加入</el-button>
       </template>
     </el-dialog>
+
+    <!-- Change Password Dialog -->
+    <el-dialog v-model="showChangePwDialog" title="设置家庭组密码" width="420px" center>
+      <el-form :model="changePwForm" label-position="top">
+        <el-form-item label="家庭组">
+          <el-input :model-value="changePwForm.groupName" disabled />
+        </el-form-item>
+        <el-form-item label="新密码（至少4位）">
+          <el-input v-model="changePwForm.newPassword" type="password" placeholder="输入新密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showChangePwDialog = false">取消</el-button>
+        <el-button type="primary" :loading="changingPw" @click="onChangePassword">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -148,11 +171,14 @@ const groupStore = useGroupStore();
 
 const showCreateDialog = ref(false);
 const showJoinDialog = ref(false);
+const showChangePwDialog = ref(false);
 const creating = ref(false);
 const joining = ref(false);
+const changingPw = ref(false);
 
 const createForm = reactive({ name: '', password: '' });
 const joinForm = reactive({ inviteCode: '', password: '' });
+const changePwForm = reactive({ groupId: 0, groupName: '', newPassword: '' });
 // Store passwords by group ID for display (persisted to localStorage)
 const PASSWORD_STORAGE_KEY = 'groupPasswords';
 
@@ -191,6 +217,30 @@ async function copyText(text: string, label: string) {
     ElMessage.success(`${label}已复制到剪贴板`);
   } catch {
     ElMessage.warning('复制失败，请手动复制');
+  }
+}
+
+function openChangePassword(g: { id: number; name: string }) {
+  changePwForm.groupId = g.id;
+  changePwForm.groupName = g.name;
+  changePwForm.newPassword = '';
+  showChangePwDialog.value = true;
+}
+
+async function onChangePassword() {
+  if (!changePwForm.newPassword || changePwForm.newPassword.length < 4) {
+    ElMessage.warning('密码至少4位');
+    return;
+  }
+  changingPw.value = true;
+  try {
+    await groupApi.update(changePwForm.groupId, { password: changePwForm.newPassword });
+    ElMessage.success('密码已更新');
+    groupPasswords.value[changePwForm.groupId] = changePwForm.newPassword;
+    savePasswords(groupPasswords.value);
+    showChangePwDialog.value = false;
+  } finally {
+    changingPw.value = false;
   }
 }
 
