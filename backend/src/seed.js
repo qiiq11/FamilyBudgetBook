@@ -7,12 +7,19 @@ const username = '测试员';
 const password = '666666';
 const groupPassword = '666666';
 
-// Create demo user
-const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-if (exists) {
-  console.log('演示账号已存在：测试员 / 666666');
-  console.log('如需重新创建，请先删除 backend/data/family_budget.db');
-  process.exit(0);
+// Create demo user (upsert: delete if exists, then recreate)
+const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+if (existing) {
+  console.log('演示账号已存在，重新创建...');
+  // Delete all related data for this user
+  const userId = existing.id;
+  db.prepare('DELETE FROM transactions WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM categories WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM family_members WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM group_members WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM family_groups WHERE creator_id = ?').run(userId);
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  console.log('旧数据已清除');
 }
 
 const hash = bcrypt.hashSync(password, 10);
