@@ -25,6 +25,7 @@ git reset --hard origin/main
 echo ""
 echo "[2/7] 清除旧数据库..."
 cd /root/FamilyBudgetBook/backend
+pm2 stop family-budget 2>/dev/null || true
 rm -f data/family_budget.db
 rm -f data/family_budget.db-shm
 rm -f data/family_budget.db-wal
